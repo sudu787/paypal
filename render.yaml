@@ -1,0 +1,52 @@
+databases:
+  - name: holdfast-db
+    plan: free
+    databaseName: holdfast
+    user: holdfast
+
+services:
+  - type: web
+    name: holdfast
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm run db:migrate && npm run db:seed && npm run start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: holdfast-db
+          property: connectionString
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: APP_URL
+        sync: false
+      - key: PAYPAL_API_BASE
+        value: https://api-m.sandbox.paypal.com
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: PAYPAL_WEBHOOK_ID
+        sync: false
+      - key: PAYPAL_WEBHOOK_SKIP_VERIFY
+        value: "false"
+      - key: PAYOUTS_ENABLED
+        value: "false"
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ANTHROPIC_MODEL
+        value: claude-opus-5-5
+      - key: AI_MODE
+        value: live
+      - key: AI_DAILY_BUDGET_USD
+        value: "5"
+      - key: AI_INPUT_PRICE_USD_PER_MTOK
+        value: "4"
+      - key: AI_OUTPUT_PRICE_USD_PER_MTOK
+        value: "20"
+      - key: DEMO_MODE
+        value: "false"

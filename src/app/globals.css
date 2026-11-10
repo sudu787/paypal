@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+:root { color-scheme: light; --ink: #172c2a; --muted: #657572; --paper: #f7f8f5; --green: #147d67; --line: #e1e8e4; }
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { background: var(--paper); color: var(--ink); font-family: Arial, Helvetica, sans-serif; margin: 0; }
+button, input { font: inherit; }
+button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid #42a88f; outline-offset: 3px; }
+::selection { background: #c4eadf; color: #123d35; }
+.grain { background-image: radial-gradient(#164c3b0c 0.7px, transparent 0.7px); background-size: 8px 8px; }
+.hero-glow { background: radial-gradient(ellipse at 70% 18%, #d7eee4 0%, transparent 44%), radial-gradient(ellipse at 12% 62%, #f2ebd8 0%, transparent 39%); }
