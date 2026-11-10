@@ -4142,8 +4142,35 @@ Render → service → Deploys → previous successful deploy → Rollback. Then
 | Most Creative | Possible | The agent-to-agent negotiation |
 | Most Impactful | Possible | The freelancer trust story |
 | Best Demo Delivery | Possible | Depends on the video's pace and clarity |
-| Best Use of Render (sponsor) | Incidental | Blueprint deploy; only one sponsor prize can be won, and AG Grid is the target |
-| APIMatic, Bryntum, Channel3 | Not targeted | Would add scope without strengthening the product |
+| Best Use of Render (sponsor) | Strong platform fit | Deploy the Blueprint and PostgreSQL on Render; use the sponsor credit; evaluate Render Workflows for a non-critical demo task while PostgreSQL remains authoritative for payment jobs |
+| APIMatic PayPal Context Plugin | Strong development fit | Use its Codex-supported PayPal API context when reviewing the existing integration; record the exact endpoints and behavior verified |
+| Best Use of Bryntum (sponsor) | Strong product fit | Add a Gantt or calendar view of milestone dates and dependencies after the payment flow is stable; show authorization and evidence-review states without implying payout |
+| Channel3 | Conditional fit | Try its product API in the bakery deliverable demo only if it provides useful, real product data; keep it outside payment decisions and require a configured API key |
+| KERNEL | Demo and evidence-review fit | Use a browser session and replay to exercise the demo deliverable; label replay as replay and keep production evidence retrieval allowlisted and bounded |
+| Astropods | Optional agent operations fit | Evaluate running an advisory agent through Astropods only if it adds useful deployment or observability over the existing app-hosted agent |
+| Postman | Development and validation fit | Use the PayPal Postman collection to exercise and record sandbox API requests; this is supplementary to app-level checks |
+| Zapier | Optional workflow fit | Use only for non-financial notifications or team workflow; never invoke capture, void, or other payment actions from a Zap |
+| Devpost | Submission platform | Prepare and submit the project through the Devpost website; include only sponsor tools actually used and shown in the project |
+
+### 16.2.1 Sponsor resource adoption and evidence
+
+Treat the sponsor page as a set of tools, credits, and submission resources. Use the items that strengthen the HoldFast demo, and keep a verifiable record for each claimed integration. Do not list a provider as part of the build until its tool has been configured and exercised.
+
+| Resource | Concrete use | Status / evidence to capture |
+|---|---|---|
+| PayPal | Sandbox order approval, authorization, capture, void, and verified webhooks | Existing integration; record sandbox IDs and outcomes for the hosted walkthrough |
+| APIMatic | Use the PayPal Context Plugin for Codex to review implementation and error handling | Installed for Codex; restart Codex to load it, then retain review notes and list only APIs actually used |
+| Render | Host the web service, PostgreSQL, and worker; redeem the hackathon credit; inspect deployment health and logs | Hosting is the planned deployment; connection and hosted walkthrough remain to be completed |
+| Render Workflows | Evaluate a bounded demo or maintenance workflow that does not replace the database-backed payment job queue | Pending; document one successful run only if adopted |
+| Postman | Use the PayPal collection for independent sandbox request checks | Pending; save a small collection or run log with sandbox results |
+| Bryntum | Show milestones, due dates, and dependencies on a Gantt or calendar view | Candidate UI enhancement; use the trial and confirm sponsor category requirements before implementation |
+| Channel3 | Enrich the sample bakery deliverable with product data only if results are useful and the API key is available | Pending API access and fit check; never use product data to determine payment outcomes |
+| KERNEL | Run the browser demo against the sample deliverable and save a replay for review | Candidate test/demo tool; label replay and keep it separate from live verification claims |
+| Astropods | Evaluate deployment and observation of one advisory agent | Optional; compare it with the current app-hosted agent before adding a second runtime |
+| Zapier | Send non-financial demo notifications for agreement or review events | Optional; no payment operation or financial authority may be exposed to the workflow |
+| Devpost | Draft, tag, upload the short demo, and submit the project | Pending; complete through the Devpost site and verify the submission is marked submitted |
+
+The Render Codex integration and APIMatic Context Plugin are setup tools, not product integrations by themselves. Sponsor credits and trials are not evidence of use. For the submission, record the connected tool, the feature or test that used it, and one visible result. Keep the transaction ledger, durable payment operations, and human capture decision as HoldFast's source of truth.
 
 ## 16.3 Three-minute demo
 
