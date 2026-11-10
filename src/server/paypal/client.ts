@@ -88,8 +88,22 @@ function parsePayPalError(status: number, payload: unknown): PayPalError {
   return new PayPalError(message, status, issue, debugId, uncertain);
 }
 
+export function isValidPayPalRequestId(requestId: string) {
+  return requestId.length <= 38 && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId);
+}
+
+export type CaptureOutcome = "COMPLETED" | "PENDING" | "FAILED" | "UNKNOWN";
+
+export function normalizeCaptureStatus(status?: string): CaptureOutcome {
+  const normalized = status?.toUpperCase();
+  if (normalized === "COMPLETED") return "COMPLETED";
+  if (normalized === "PENDING") return "PENDING";
+  if (normalized === "DECLINED" || normalized === "FAILED" || normalized === "DENIED") return "FAILED";
+  return "UNKNOWN";
+}
+
 function assertRequestId(requestId: string) {
-  if (requestId.length > 38 || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId)) {
+  if (!isValidPayPalRequestId(requestId)) {
     throw new AppError("VALIDATION_ERROR", "A plain UUID operation ID is required for PayPal idempotency.", 400);
   }
 }
@@ -178,6 +192,10 @@ export async function authorizeOrder(orderId: string, requestId: string) {
 export async function getAuthorization(authorizationId: string) {
   return mutationSchema.extend({ expiration_time: z.string().optional(), amount: z.object({ currency_code: z.string(), value: z.string() }).optional() }).passthrough()
     .parse(await paypalRequest<unknown>(`/v2/payments/authorizations/${encodeURIComponent(authorizationId)}`));
+}
+
+export async function getCapture(captureId: string) {
+  return mutationSchema.parse(await paypalRequest<unknown>(`/v2/payments/captures/${encodeURIComponent(captureId)}`));
 }
 
 export async function captureAuthorization(input: { authorizationId: string; amountCents: number; currency: string; requestId: string; invoiceId: string }) {

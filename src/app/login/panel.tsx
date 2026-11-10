@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ArrowLeft, ArrowRight, Handshake, LoaderCircle, ShieldCheck } from "lucide-react";
 
-type Persona = "client" | "freelancer";
+type Persona = "client" | "freelancer" | "admin";
 
-export function AuthPanel({ startInDemo }: { startInDemo: boolean }) {
+export function AuthPanel({ demoEnabled, startInDemo }: { demoEnabled: boolean; startInDemo: boolean }) {
   const router = useRouter();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
@@ -42,9 +42,11 @@ export function AuthPanel({ startInDemo }: { startInDemo: boolean }) {
           {error && <p role="alert" className="rounded-xl bg-[#fff2ed] px-4 py-3 text-sm text-[#9a412d]">{error}</p>}
           <button disabled={busy} className="w-full rounded-full bg-[#147d67] px-5 py-3.5 text-sm font-bold text-white transition hover:bg-[#106c5a] disabled:opacity-60">{busy ? <><LoaderCircle className="mr-2 inline animate-spin" size={16}/>Working…</> : <>{mode === "login" ? "Sign in" : "Create account"}<ArrowRight className="ml-2 inline" size={16}/></>}</button>
         </form>
-        <div className="my-6 flex items-center gap-3 text-xs uppercase tracking-wider text-[#9aa7a1]"><span className="h-px flex-1 bg-[#e7ede9]"/>or use the demo<span className="h-px flex-1 bg-[#e7ede9]"/></div>
-        {startInDemo && <p className="mb-3 rounded-xl bg-[#f2f7f2] px-3 py-2 text-xs leading-5 text-[#526c60]">Choose a sample persona. Demo accounts must be added with the database seed command.</p>}
-        <div className="grid grid-cols-2 gap-3">{(["client", "freelancer"] as Persona[]).map((persona) => <button key={persona} disabled={busy} onClick={() => void callApi("/api/v1/auth/demo", { persona })} className="rounded-xl border border-[#dce5df] px-3 py-3 text-sm font-semibold text-[#31574a] hover:bg-[#f5f9f5] disabled:opacity-60">{busy ? "Please wait…" : `Demo ${persona}`}</button>)}</div>
+        {demoEnabled && <>
+          <div className="my-6 flex items-center gap-3 text-xs uppercase tracking-wider text-[#9aa7a1]"><span className="h-px flex-1 bg-[#e7ede9]"/>or use the demo<span className="h-px flex-1 bg-[#e7ede9]"/></div>
+          {startInDemo && <p className="mb-3 rounded-xl bg-[#f2f7f2] px-3 py-2 text-xs leading-5 text-[#526c60]">Demo workspaces are isolated per browser. You can switch personas here without signing out to keep the same sample agreement. Use the admin persona to inspect the local job queue.</p>}
+          <div className="grid grid-cols-2 gap-3">{(["client", "freelancer", "admin"] as Persona[]).map((persona) => <button key={persona} disabled={busy} onClick={() => void callApi("/api/v1/auth/demo", { persona })} className="rounded-xl border border-[#dce5df] px-3 py-3 text-sm font-semibold text-[#31574a] hover:bg-[#f5f9f5] disabled:opacity-60">{busy ? "Please wait…" : `Demo ${persona}`}</button>)}</div>
+        </>}
       </div>
     </section><footer className="mx-auto w-full max-w-6xl py-3 text-center text-xs text-[#82918b]">HoldFast is a hackathon prototype. PayPal sandbox only.</footer>
   </main>;

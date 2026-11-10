@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { and, eq } from "drizzle-orm";
 import { getDatabase } from "@/server/db";
 import { durableJobs, webhookEvents } from "@/server/db/schema";
 import { AppError, toErrorResponse } from "@/server/errors";
@@ -29,13 +30,13 @@ export async function POST(request: Request) {
       });
       if (!verified) throw new AppError("FORBIDDEN", "PayPal webhook signature could not be verified.", 400);
       signatureVerified = true;
-    }
+    } else if (env.NODE_ENV !== "production") signatureVerified = true;
 
     const db = getDatabase();
     if (!db) throw new AppError("CONFIGURATION_ERROR", "Database is not configured.", 503);
     const resource = event.resource ?? {};
     await db.transaction(async (tx) => {
-      const [inserted] = await tx.insert(webhookEvents).values({
+      await tx.insert(webhookEvents).values({
         id: event.id,
         eventType: event.event_type,
         resourceType: event.resource_type ?? null,
@@ -43,7 +44,14 @@ export async function POST(request: Request) {
         verified: signatureVerified,
         payload: event,
       }).onConflictDoNothing().returning({ id: webhookEvents.id });
-      if (inserted && signatureVerified) await tx.insert(durableJobs).values({ kind: "PAYPAL_WEBHOOK", resourceId: event.id, status: "QUEUED" }).onConflictDoNothing();
+      if (signatureVerified) {
+        const [stored] = await tx.select({ processedAt: webhookEvents.processedAt }).from(webhookEvents).where(eq(webhookEvents.id, event.id)).limit(1);
+        if (stored && !stored.processedAt) {
+          const [failed] = await tx.select({ id: durableJobs.id }).from(durableJobs).where(and(eq(durableJobs.kind, "PAYPAL_WEBHOOK"), eq(durableJobs.resourceId, event.id), eq(durableJobs.status, "FAILED"))).limit(1);
+          if (failed) await tx.update(durableJobs).set({ status: "QUEUED", attempts: 0, runAfter: new Date(), leaseOwner: null, leaseExpiresAt: null, lastError: null, updatedAt: new Date() }).where(eq(durableJobs.id, failed.id));
+          else await tx.insert(durableJobs).values({ kind: "PAYPAL_WEBHOOK", resourceId: event.id, status: "QUEUED" }).onConflictDoNothing();
+        }
+      }
     });
     return Response.json({ ok: true });
   } catch (error) {

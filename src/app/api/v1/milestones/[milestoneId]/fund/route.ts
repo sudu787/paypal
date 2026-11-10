@@ -3,8 +3,9 @@ import { and, desc, eq } from "drizzle-orm";
 import { apiRouteWithContext } from "@/server/http";
 import { requireUser } from "@/server/auth/session";
 import { getDatabase } from "@/server/db";
-import { auditEvents, deals, milestones, paymentOperations, paypalOrders } from "@/server/db/schema";
+import { auditEvents, deals, durableJobs, milestones, paymentOperations, paypalOrders } from "@/server/db/schema";
 import { AppError } from "@/server/errors";
+import { env } from "@/server/env";
 import { PayPalError, createAuthorizeOrder, getOrder } from "@/server/paypal/client";
 
 export const POST = apiRouteWithContext(async (request, _requestId, context) => {
@@ -18,6 +19,7 @@ export const POST = apiRouteWithContext(async (request, _requestId, context) => 
   if (!snapshot || snapshot.deal.clientId !== user.id) throw new AppError("NOT_FOUND", "Milestone not found.", 404);
   if (snapshot.deal.status !== "ACTIVE") throw new AppError("CONFLICT", "Both people must sign the agreement before funding.", 409);
   const fingerprint = createHash("sha256").update(JSON.stringify({ milestone_id: milestoneId, amount_cents: snapshot.milestone.amountCents, currency: snapshot.milestone.currency })).digest("hex");
+  const origin = new URL(env.APP_URL).origin;
   const operation = await db.transaction(async (tx) => {
     const [milestone] = await tx.select().from(milestones).where(eq(milestones.id, milestoneId)).for("update").limit(1);
     const [existing] = await tx.select().from(paymentOperations).where(and(eq(paymentOperations.operationType, "CREATE_ORDER"), eq(paymentOperations.actorUserId, user.id), eq(paymentOperations.idempotencyKey, idempotencyKey))).limit(1);
@@ -26,11 +28,13 @@ export const POST = apiRouteWithContext(async (request, _requestId, context) => 
       const [order] = await tx.select().from(paypalOrders).where(eq(paypalOrders.operationId, existing.id)).limit(1);
       return { operation: existing, order };
     }
-    if (!milestone || milestone.authorizationStatus !== "NONE") throw new AppError("CONFLICT", "This milestone is not awaiting its first authorization.", 409);
+    if (!milestone || milestone.authorizationStatus !== "NONE" || !["NOT_STARTED", "REVISION_REQUESTED"].includes(milestone.workStatus) || milestone.captureStatus !== "NONE") throw new AppError("CONFLICT", "This milestone is not awaiting its first authorization.", 409);
     const [existingHold] = await tx.select().from(paypalOrders).where(eq(paypalOrders.milestoneId, milestoneId)).orderBy(desc(paypalOrders.createdAt)).limit(1);
     if (existingHold && ["REQUESTED", "IN_PROGRESS", "UNKNOWN", "CREATED", "AUTHORIZED"].includes(existingHold.status)) throw new AppError("CONFLICT", "A funding request or authorization already exists for this milestone.", 409);
     const operationId = randomUUID();
-    const [createdOperation] = await tx.insert(paymentOperations).values({ id: operationId, operationType: "CREATE_ORDER", milestoneId, actorUserId: user.id, idempotencyKey, requestFingerprint: fingerprint, requestParameters: { amount_cents: milestone.amountCents, currency: milestone.currency }, status: "IN_PROGRESS" }).returning();
+    const returnUrl = `${origin}/api/v1/paypal/return?fa=${encodeURIComponent(operationId)}`;
+    const cancelUrl = `${origin}/api/v1/paypal/cancel?fa=${encodeURIComponent(operationId)}`;
+    const [createdOperation] = await tx.insert(paymentOperations).values({ id: operationId, operationType: "CREATE_ORDER", milestoneId, actorUserId: user.id, idempotencyKey, requestFingerprint: fingerprint, requestParameters: { amount_cents: milestone.amountCents, currency: milestone.currency, return_url: returnUrl, cancel_url: cancelUrl }, status: "IN_PROGRESS" }).returning();
     const [createdOrder] = await tx.insert(paypalOrders).values({ operationId, milestoneId, createdBy: user.id, amountCents: milestone.amountCents, currency: milestone.currency, status: "IN_PROGRESS" }).returning();
     await tx.insert(auditEvents).values({ category: "PAYMENT", eventType: "ORDER_CREATE_REQUESTED", dealId: snapshot.deal.id, milestoneId, actorType: "USER", actorUserId: user.id, amountCents: milestone.amountCents, currency: milestone.currency, data: { operation_id: operationId } });
     return { operation: createdOperation!, order: createdOrder! };
@@ -50,8 +54,8 @@ export const POST = apiRouteWithContext(async (request, _requestId, context) => 
       amountCents: operation.order?.amountCents ?? snapshot.milestone.amountCents,
       currency: operation.order?.currency ?? snapshot.milestone.currency,
       requestId: operation.operation.id,
-      returnUrl: `${new URL(request.url).origin}/api/v1/paypal/return?fa=${operation.operation.id}`,
-      cancelUrl: `${new URL(request.url).origin}/api/v1/paypal/cancel?fa=${operation.operation.id}`,
+      returnUrl: typeof operation.operation.requestParameters.return_url === "string" ? operation.operation.requestParameters.return_url : `${origin}/api/v1/paypal/return?fa=${encodeURIComponent(operation.operation.id)}`,
+      cancelUrl: typeof operation.operation.requestParameters.cancel_url === "string" ? operation.operation.requestParameters.cancel_url : `${origin}/api/v1/paypal/cancel?fa=${encodeURIComponent(operation.operation.id)}`,
     });
     await db.transaction(async (tx) => {
       await tx.update(paymentOperations).set({ status: "SUCCEEDED", providerObjectId: result.id, attemptCount: operation.operation.attemptCount + 1, updatedAt: new Date() }).where(eq(paymentOperations.id, operation.operation.id));
@@ -64,6 +68,7 @@ export const POST = apiRouteWithContext(async (request, _requestId, context) => 
     await db.transaction(async (tx) => {
       await tx.update(paymentOperations).set({ status: uncertain ? "UNKNOWN" : "FAILED", attemptCount: operation.operation.attemptCount + 1, lastErrorCode: error instanceof PayPalError ? error.issue : "NETWORK_ERROR", debugId: error instanceof PayPalError ? error.debugId : null, updatedAt: new Date() }).where(eq(paymentOperations.id, operation.operation.id));
       await tx.update(paypalOrders).set({ status: uncertain ? "UNKNOWN" : "FAILED", failureReason: error instanceof Error ? error.message.slice(0, 500) : "Provider error", updatedAt: new Date() }).where(eq(paypalOrders.operationId, operation.operation.id));
+      if (uncertain) await tx.insert(durableJobs).values({ kind: "PAYMENT_RECOVERY", resourceId: operation.operation.id, status: "QUEUED" }).onConflictDoNothing();
     });
     throw error;
   }

@@ -34,6 +34,12 @@ services:
         sync: false
       - key: PAYPAL_WEBHOOK_SKIP_VERIFY
         value: "false"
+      - key: WORKER_DISABLED
+        value: "false"
+      - key: EVIDENCE_ALLOWED_HOSTS
+        sync: false
+      - key: ADMIN_EMAILS
+        sync: false
       - key: PAYOUTS_ENABLED
         value: "false"
       - key: ANTHROPIC_API_KEY

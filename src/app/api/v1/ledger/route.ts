@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, or } from "drizzle-orm";
 import { z } from "zod";
 import { apiRoute } from "@/server/http";
 import { requireUser } from "@/server/auth/session";
@@ -19,9 +19,8 @@ export const GET = apiRoute(async (request) => {
   if (dealId) conditions.push(eq(auditEvents.dealId, dealId));
   if (category) conditions.push(eq(auditEvents.category, category.toUpperCase()));
   if (user.role !== "admin") {
-    const partyDeals = await db.select({ id: deals.id }).from(deals).where(eq(deals.clientId, user.id)).union(
-      db.select({ id: deals.id }).from(deals).where(eq(deals.freelancerId, user.id)),
-    );
+    const sessionScope = user.demoSessionId ? eq(deals.demoSessionId, user.demoSessionId) : isNull(deals.demoSessionId);
+    const partyDeals = await db.select({ id: deals.id }).from(deals).where(and(or(eq(deals.clientId, user.id), eq(deals.freelancerId, user.id)), sessionScope));
     const ids = partyDeals.map((row) => row.id);
     if (dealId && !ids.includes(dealId)) throw new AppError("NOT_FOUND", "Ledger not found.", 404);
     if (!ids.length) return Response.json({ rows: [] });

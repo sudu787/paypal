@@ -42,12 +42,12 @@ export async function requireUser() {
     session.destroy();
     throw new AppError("UNAUTHENTICATED", "Session has expired. Sign in again.", 401);
   }
-  return user;
+  return { ...user, demoSessionId: session.demoSessionId ?? null };
 }
 
 export async function requireAdmin() {
   const user = await requireUser();
-  if (user.role !== "admin") throw new AppError("FORBIDDEN", "Administrator access is required.", 403);
+  if (user.role !== "admin" && !env.ADMIN_EMAILS.includes(user.email.toLowerCase())) throw new AppError("FORBIDDEN", "Administrator access is required.", 403);
   return user;
 }
 
@@ -55,6 +55,7 @@ export async function saveSession(userId: string, demoSessionId?: string) {
   const session = await getSession();
   session.userId = userId;
   if (demoSessionId) session.demoSessionId = demoSessionId;
+  else delete session.demoSessionId;
   await session.save();
 }
 

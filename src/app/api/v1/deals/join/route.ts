@@ -5,6 +5,7 @@ import { requireUser } from "@/server/auth/session";
 import { getDatabase } from "@/server/db";
 import { auditEvents, deals, mandates, milestones, users } from "@/server/db/schema";
 import { AppError } from "@/server/errors";
+import { isSameDemoSession } from "@/server/auth/demo-session";
 
 const schema = z.object({
   invite_token: z.string().min(24).max(128),
@@ -20,6 +21,7 @@ export const POST = apiRoute(async (request) => {
   if (!db) throw new AppError("CONFIGURATION_ERROR", "Database is not configured.", 503);
   const [deal] = await db.select().from(deals).where(eq(deals.inviteToken, parsed.data.invite_token)).limit(1);
   if (!deal || deal.status === "CANCELLED") throw new AppError("NOT_FOUND", "This invitation is unavailable.", 404);
+  if (!isSameDemoSession(deal.demoSessionId, user.demoSessionId)) throw new AppError("NOT_FOUND", "This invitation is unavailable.", 404);
   if (deal.clientId === user.id) throw new AppError("CONFLICT", "You cannot join your own agreement as the freelancer.", 409);
   if (deal.freelancerId && deal.freelancerId !== user.id) throw new AppError("CONFLICT", "This invitation has already been claimed.", 409);
   const proposedMilestones = await db.select().from(milestones).where(eq(milestones.dealId, deal.id));
