@@ -55,4 +55,4 @@ services:
       - key: AI_OUTPUT_PRICE_USD_PER_MTOK
         value: "20"
       - key: DEMO_MODE
-        value: "false"
+        value: "true"   # browser-scoped client/freelancer demo; admin persona is never offered in production
