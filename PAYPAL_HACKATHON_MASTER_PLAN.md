@@ -4142,7 +4142,7 @@ Render → service → Deploys → previous successful deploy → Rollback. Then
 | Most Creative | Possible | The agent-to-agent negotiation |
 | Most Impactful | Possible | The freelancer trust story |
 | Best Demo Delivery | Possible | Depends on the video's pace and clarity |
-| Best Use of Render (sponsor) | Strong platform fit | Deploy the Blueprint and PostgreSQL on Render; use the sponsor credit; evaluate Render Workflows for a non-critical demo task while PostgreSQL remains authoritative for payment jobs |
+| Best Use of Render (sponsor) | Strong platform fit | Deploy the Blueprint on Render; use sponsor credits for the smallest paid PostgreSQL plan; evaluate Render Workflows for a non-critical demo task while PostgreSQL remains authoritative for payment jobs |
 | APIMatic PayPal Context Plugin | Strong development fit | Use its Codex-supported PayPal API context when reviewing the existing integration; record the exact endpoints and behavior verified |
 | Best Use of Bryntum (sponsor) | Strong product fit | Add a Gantt or calendar view of milestone dates and dependencies after the payment flow is stable; show authorization and evidence-review states without implying payout |
 | Channel3 | Conditional fit | Try its product API in the bakery deliverable demo only if it provides useful, real product data; keep it outside payment decisions and require a configured API key |
@@ -4160,7 +4160,7 @@ Treat the sponsor page as a set of tools, credits, and submission resources. Use
 |---|---|---|
 | PayPal | Sandbox order approval, authorization, capture, void, and verified webhooks | Existing integration; record sandbox IDs and outcomes for the hosted walkthrough |
 | APIMatic | Use the PayPal Context Plugin for Codex to review implementation and error handling | Installed for Codex; restart Codex to load it, then retain review notes and list only APIs actually used |
-| Render | Host the web service, PostgreSQL, and worker; redeem the hackathon credit; inspect deployment health and logs | OAuth connection completed on 2026-11-11; create the hosted service, configure sandbox settings, and complete the walkthrough |
+| Render | Host the web service, paid PostgreSQL, and worker; use the hackathon credit; inspect deployment health and logs | OAuth connection completed; Blueprint now proposes the smallest paid Postgres plan with a 1 GB disk; approve the sync, configure sandbox settings, and complete the walkthrough |
 | Render Workflows | Evaluate a bounded demo or maintenance workflow that does not replace the database-backed payment job queue | Pending; document one successful run only if adopted |
 | Postman | Use the PayPal collection for independent sandbox request checks | Pending; save a small collection or run log with sandbox results |
 | Bryntum | Show milestones, due dates, and dependencies on a Gantt or calendar view | Candidate UI enhancement; use the trial and confirm sponsor category requirements before implementation |
