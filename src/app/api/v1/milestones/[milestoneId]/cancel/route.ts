@@ -63,9 +63,10 @@ export const POST = apiRouteWithContext(async (request, _requestId, context) => 
     });
     return Response.json({ status: "CANCELLED", authorization: "VOIDED" });
   } catch (error) {
-    const uncertain = error instanceof PayPalError ? error.uncertain : true;
+    // AppErrors other than PayPalError (configuration, validation) are raised before any provider call.
+    const uncertain = error instanceof PayPalError ? error.uncertain : !(error instanceof AppError);
     await db.transaction(async (tx) => {
-      await tx.update(paymentOperations).set({ status: uncertain ? "UNKNOWN" : "FAILED", attemptCount: snapshot.operation!.attemptCount + 1, lastErrorCode: error instanceof PayPalError ? error.issue : "NETWORK_ERROR", debugId: error instanceof PayPalError ? error.debugId : null, updatedAt: new Date() }).where(eq(paymentOperations.id, snapshot.operation!.id));
+      await tx.update(paymentOperations).set({ status: uncertain ? "UNKNOWN" : "FAILED", attemptCount: snapshot.operation!.attemptCount + 1, lastErrorCode: error instanceof PayPalError ? error.issue : error instanceof AppError ? error.code : "NETWORK_ERROR", debugId: error instanceof PayPalError ? error.debugId : null, updatedAt: new Date() }).where(eq(paymentOperations.id, snapshot.operation!.id));
       if (uncertain) {
         await tx.update(milestones).set({ authorizationStatus: "UNKNOWN", updatedAt: new Date() }).where(eq(milestones.id, milestoneId));
         await tx.insert(durableJobs).values({ kind: "PAYMENT_RECOVERY", resourceId: snapshot.operation!.id, status: "QUEUED" }).onConflictDoNothing();

@@ -5,6 +5,7 @@ import { requireUser } from "@/server/auth/session";
 import { getDatabase } from "@/server/db";
 import { auditEvents, deals, durableJobs, milestones, paymentOperations, paypalOrders } from "@/server/db/schema";
 import { PayPalError, authorizeOrder, getOrder } from "@/server/paypal/client";
+import { AppError } from "@/server/errors";
 import { logger } from "@/server/logger";
 
 function back(request: NextRequest, dealId: string, result: string) {
@@ -66,9 +67,10 @@ export async function GET(request: NextRequest) {
       });
       return back(request, dealId, "authorized=1");
     } catch (error) {
-      const uncertain = error instanceof PayPalError ? error.uncertain : true;
+      // AppErrors other than PayPalError (configuration, validation) are raised before any provider call.
+    const uncertain = error instanceof PayPalError ? error.uncertain : !(error instanceof AppError);
       await db.transaction(async (tx) => {
-        await tx.update(paymentOperations).set({ status: uncertain ? "UNKNOWN" : "FAILED", attemptCount: authorizeOperation.attemptCount + 1, lastErrorCode: error instanceof PayPalError ? error.issue : "NETWORK_ERROR", debugId: error instanceof PayPalError ? error.debugId : null, updatedAt: new Date() }).where(eq(paymentOperations.id, authorizeOperation.id));
+        await tx.update(paymentOperations).set({ status: uncertain ? "UNKNOWN" : "FAILED", attemptCount: authorizeOperation.attemptCount + 1, lastErrorCode: error instanceof PayPalError ? error.issue : error instanceof AppError ? error.code : "NETWORK_ERROR", debugId: error instanceof PayPalError ? error.debugId : null, updatedAt: new Date() }).where(eq(paymentOperations.id, authorizeOperation.id));
         if (uncertain) {
           await tx.update(paypalOrders).set({ status: "UNKNOWN", updatedAt: new Date() }).where(eq(paypalOrders.id, funding.providerOrder.id));
           await tx.update(milestones).set({ authorizationStatus: "UNKNOWN", updatedAt: new Date() }).where(eq(milestones.id, funding.milestone.id));

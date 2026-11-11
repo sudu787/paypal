@@ -1,0 +1,4 @@
+// Dummy sandbox credentials so payment paths can run against a stubbed fetch.
+// Tests never reach PayPal: every PayPal-calling test replaces globalThis.fetch.
+process.env.PAYPAL_CLIENT_ID ||= "test-client-id";
+process.env.PAYPAL_CLIENT_SECRET ||= "test-client-secret";

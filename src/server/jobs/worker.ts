@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, eq, inArray, isNull, lte, ne } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, lte, ne } from "drizzle-orm";
 import { getDatabase } from "@/server/db";
 import { env } from "@/server/env";
 import {
@@ -157,15 +157,23 @@ async function enqueueRecovery(operationId: string) {
 export async function recoverPaymentOperation(operationId: string, createOrder = createAuthorizeOrder) {
   const db = getDatabase();
   if (!db) return;
-  const [row] = await db.select({ operation: paymentOperations, order: paypalOrders, capture: captures, milestone: milestones, deal: deals })
+  const [base] = await db.select({ operation: paymentOperations, capture: captures, milestone: milestones, deal: deals })
     .from(paymentOperations)
     .innerJoin(milestones, eq(paymentOperations.milestoneId, milestones.id))
     .innerJoin(deals, eq(milestones.dealId, deals.id))
-    .leftJoin(paypalOrders, eq(paypalOrders.operationId, paymentOperations.id))
     .leftJoin(captures, eq(captures.operationId, paymentOperations.id))
     .where(eq(paymentOperations.id, operationId)).limit(1);
-  if (!row || !ACTIVE_OPERATION_STATUSES.includes(row.operation.status as typeof ACTIVE_OPERATION_STATUSES[number])) return;
-  const params = row.operation.requestParameters;
+  if (!base || !ACTIVE_OPERATION_STATUSES.includes(base.operation.status as typeof ACTIVE_OPERATION_STATUSES[number])) return;
+  const params = base.operation.requestParameters;
+  // Only the CREATE_ORDER operation owns the order row. Authorize, capture, and void
+  // operations reach the same row through the provider reference they were issued for.
+  const orderLookup = base.operation.operationType === "CREATE_ORDER" ? eq(paypalOrders.operationId, operationId)
+    : base.operation.operationType === "AUTHORIZE" && getString(params.paypal_order_id) ? eq(paypalOrders.paypalOrderId, getString(params.paypal_order_id)!)
+      : base.operation.operationType === "CAPTURE" && base.capture ? eq(paypalOrders.id, base.capture.paypalOrderRowId)
+        : base.operation.operationType === "VOID" && getString(params.authorization_id) ? eq(paypalOrders.authorizationId, getString(params.authorization_id)!)
+          : null;
+  const [order] = orderLookup ? await db.select().from(paypalOrders).where(and(eq(paypalOrders.milestoneId, base.milestone.id), orderLookup)).limit(1) : [];
+  const row = { ...base, order: order ?? null };
   const now = new Date();
 
   if (row.operation.operationType === "CREATE_ORDER") {
@@ -207,14 +215,19 @@ export async function recoverPaymentOperation(operationId: string, createOrder =
     const amountCents = Number(params.amount_cents);
     const currency = getString(params.currency) ?? row.order?.currency ?? row.milestone.currency;
     if (!authorizationId || !Number.isInteger(amountCents) || !row.capture || !row.order) throw new Error("Capture operation is missing its immutable parameters.");
-    const auth = await getAuthorization(authorizationId);
-    const providerAmount = auth.amount;
-    if (providerAmount && (providerAmount.currency_code !== currency || Number(providerAmount.value) !== amountCents / 100)) throw new Error("PayPal authorization amount differs from the stored capture request.");
-    if (auth.status !== "CREATED" && auth.status !== "CAPTURED") throw new Error(`PayPal authorization is ${auth.status}; capture outcome needs provider confirmation.`);
-    // A retry uses the original UUID. If the capture ID is known, read its status first.
-    const result = row.operation.providerObjectId
-      ? await getCapture(row.operation.providerObjectId)
-      : await captureAuthorization({ authorizationId, amountCents, currency, requestId: row.operation.id, invoiceId: `milestone-${row.milestone.id}` });
+    // A known capture ID is authoritative: read it directly. The authorization
+    // status can be in an intermediate state while a capture is pending.
+    let result;
+    if (row.operation.providerObjectId) {
+      result = await getCapture(row.operation.providerObjectId);
+    } else {
+      const auth = await getAuthorization(authorizationId);
+      const providerAmount = auth.amount;
+      if (providerAmount && (providerAmount.currency_code !== currency || Number(providerAmount.value) !== amountCents / 100)) throw new Error("PayPal authorization amount differs from the stored capture request.");
+      if (auth.status !== "CREATED" && auth.status !== "CAPTURED") throw new Error(`PayPal authorization is ${auth.status}; capture outcome needs provider confirmation.`);
+      // Retries reuse the original UUID, so PayPal returns the same capture instead of a second one.
+      result = await captureAuthorization({ authorizationId, amountCents, currency, requestId: row.operation.id, invoiceId: `milestone-${row.milestone.id}` });
+    }
     if (!result.id) throw new Error("PayPal capture response did not contain an ID.");
     const captureStatus = normalizeCaptureStatus(result.status);
     const completed = captureStatus === "COMPLETED";
@@ -310,7 +323,7 @@ export async function processWebhook(eventId: string) {
     const captureId = resourceId;
     const [captureRow] = captureId ? await db.select().from(captures).where(eq(captures.paypalCaptureId, captureId)).limit(1) : [];
     let target = captureRow;
-    if (!target && authorizationId) [target] = await db.select().from(captures).where(eq(captures.authorizationId, authorizationId)).limit(1);
+    if (!target && authorizationId) [target] = await db.select().from(captures).where(eq(captures.authorizationId, authorizationId)).orderBy(desc(captures.createdAt)).limit(1);
     if (!target) throw new Error("Capture event is not linked to a local capture operation yet.");
     const [base] = await db.select({ milestone: milestones, deal: deals, operation: paymentOperations }).from(captures)
       .innerJoin(milestones, eq(captures.milestoneId, milestones.id)).innerJoin(deals, eq(milestones.dealId, deals.id))

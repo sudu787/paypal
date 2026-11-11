@@ -3,5 +3,5 @@ import { env } from "@/server/env";
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ mode?: string }> }) {
   const params = await searchParams;
-  return <AuthPanel demoEnabled={env.DEMO_MODE} startInDemo={params.mode === "demo"}/>;
+  return <AuthPanel demoEnabled={env.DEMO_MODE} adminDemoEnabled={env.NODE_ENV !== "production"} startInDemo={params.mode === "demo"}/>;
 }

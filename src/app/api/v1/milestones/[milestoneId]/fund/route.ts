@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { and, desc, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { apiRouteWithContext } from "@/server/http";
 import { requireUser } from "@/server/auth/session";
 import { getDatabase } from "@/server/db";
@@ -29,8 +29,8 @@ export const POST = apiRouteWithContext(async (request, _requestId, context) => 
       return { operation: existing, order };
     }
     if (!milestone || milestone.authorizationStatus !== "NONE" || !["NOT_STARTED", "REVISION_REQUESTED"].includes(milestone.workStatus) || milestone.captureStatus !== "NONE") throw new AppError("CONFLICT", "This milestone is not awaiting its first authorization.", 409);
-    const [existingHold] = await tx.select().from(paypalOrders).where(eq(paypalOrders.milestoneId, milestoneId)).orderBy(desc(paypalOrders.createdAt)).limit(1);
-    if (existingHold && ["REQUESTED", "IN_PROGRESS", "UNKNOWN", "CREATED", "AUTHORIZED"].includes(existingHold.status)) throw new AppError("CONFLICT", "A funding request or authorization already exists for this milestone.", 409);
+    const [existingHold] = await tx.select({ id: paypalOrders.id }).from(paypalOrders).where(and(eq(paypalOrders.milestoneId, milestoneId), inArray(paypalOrders.status, ["REQUESTED", "IN_PROGRESS", "UNKNOWN", "CREATED", "AUTHORIZED"]))).limit(1);
+    if (existingHold) throw new AppError("CONFLICT", "A funding request or authorization already exists for this milestone.", 409);
     const operationId = randomUUID();
     const returnUrl = `${origin}/api/v1/paypal/return?fa=${encodeURIComponent(operationId)}`;
     const cancelUrl = `${origin}/api/v1/paypal/cancel?fa=${encodeURIComponent(operationId)}`;
@@ -64,9 +64,10 @@ export const POST = apiRouteWithContext(async (request, _requestId, context) => 
     });
     return Response.json({ funding_attempt_id: operation.operation.id, approve_url: result.approveUrl, status: result.status }, { status: 201 });
   } catch (error) {
-    const uncertain = error instanceof PayPalError ? error.uncertain : true;
+    // AppErrors other than PayPalError (configuration, validation) are raised before any provider call.
+    const uncertain = error instanceof PayPalError ? error.uncertain : !(error instanceof AppError);
     await db.transaction(async (tx) => {
-      await tx.update(paymentOperations).set({ status: uncertain ? "UNKNOWN" : "FAILED", attemptCount: operation.operation.attemptCount + 1, lastErrorCode: error instanceof PayPalError ? error.issue : "NETWORK_ERROR", debugId: error instanceof PayPalError ? error.debugId : null, updatedAt: new Date() }).where(eq(paymentOperations.id, operation.operation.id));
+      await tx.update(paymentOperations).set({ status: uncertain ? "UNKNOWN" : "FAILED", attemptCount: operation.operation.attemptCount + 1, lastErrorCode: error instanceof PayPalError ? error.issue : error instanceof AppError ? error.code : "NETWORK_ERROR", debugId: error instanceof PayPalError ? error.debugId : null, updatedAt: new Date() }).where(eq(paymentOperations.id, operation.operation.id));
       await tx.update(paypalOrders).set({ status: uncertain ? "UNKNOWN" : "FAILED", failureReason: error instanceof Error ? error.message.slice(0, 500) : "Provider error", updatedAt: new Date() }).where(eq(paypalOrders.operationId, operation.operation.id));
       if (uncertain) await tx.insert(durableJobs).values({ kind: "PAYMENT_RECOVERY", resourceId: operation.operation.id, status: "QUEUED" }).onConflictDoNothing();
     });

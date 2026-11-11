@@ -18,6 +18,8 @@ export const POST = apiRoute(async (request) => {
   if (!parsed.success) throw new AppError("VALIDATION_ERROR", "Choose a valid demo persona.", 400);
   let user;
   if (parsed.data.persona === "admin") {
+    // The admin identity is shared, not browser-scoped, so it is never offered on a public deployment.
+    if (env.NODE_ENV === "production") throw new AppError("FORBIDDEN", "The demo admin persona is only available in local development.", 403);
     const db = getDatabase();
     if (!db) throw new AppError("CONFIGURATION_ERROR", "Database is not configured.", 503);
     [user] = await db.select({ id: users.id, email: users.email, displayName: users.displayName, role: users.role })

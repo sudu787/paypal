@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { apiRouteWithContext } from "@/server/http";
 import { requireUser } from "@/server/auth/session";
@@ -27,16 +27,16 @@ export const POST = apiRouteWithContext(async (request, _requestId, context) => 
   if (!latestSubmission) throw new AppError("CONFLICT", "A work submission is required before release.", 409);
   const fingerprint = createHash("sha256").update(JSON.stringify({ milestone_id: milestoneId, authorization_id: snapshot.order.authorizationId, amount_cents: body.data.confirm_amount_cents, final_capture: true })).digest("hex");
   const operation = await db.transaction(async (tx) => {
-    await tx.select().from(milestones).where(eq(milestones.id, milestoneId)).for("update").limit(1);
+    const [locked] = await tx.select().from(milestones).where(eq(milestones.id, milestoneId)).for("update").limit(1);
     const [existing] = await tx.select().from(paymentOperations).where(and(eq(paymentOperations.operationType, "CAPTURE"), eq(paymentOperations.actorUserId, user.id), eq(paymentOperations.idempotencyKey, idempotencyKey))).limit(1);
     if (existing) {
       if (existing.milestoneId !== milestoneId || existing.requestFingerprint !== fingerprint) throw new AppError("CONFLICT", "This idempotency key belongs to a different capture request.", 409);
       const [capture] = await tx.select().from(captures).where(eq(captures.operationId, existing.id)).limit(1);
       return { operation: existing, capture, isRetry: true };
     }
-    if (snapshot.milestone.authorizationStatus !== "AUTHORIZED" || snapshot.milestone.workStatus !== "SUBMITTED" || !["NONE", "FAILED"].includes(snapshot.milestone.captureStatus)) throw new AppError("CONFLICT", "The milestone needs an active authorization, submitted work, and no unresolved capture in progress.", 409);
-    const [active] = await tx.select().from(captures).where(and(eq(captures.milestoneId, milestoneId))).limit(1);
-    if (active && ["REQUESTED", "IN_PROGRESS", "UNKNOWN", "PENDING", "COMPLETED"].includes(active.status)) throw new AppError("CONFLICT", "A capture request already exists. Resolve it before trying again.", 409);
+    if (!locked || locked.authorizationStatus !== "AUTHORIZED" || locked.workStatus !== "SUBMITTED" || !["NONE", "FAILED"].includes(locked.captureStatus)) throw new AppError("CONFLICT", "The milestone needs an active authorization, submitted work, and no unresolved capture in progress.", 409);
+    const [active] = await tx.select({ id: captures.id }).from(captures).where(and(eq(captures.milestoneId, milestoneId), inArray(captures.status, ["REQUESTED", "IN_PROGRESS", "UNKNOWN", "PENDING", "COMPLETED"]))).limit(1);
+    if (active) throw new AppError("CONFLICT", "A capture request already exists. Resolve it before trying again.", 409);
     const operationId = randomUUID();
     const [created] = await tx.insert(paymentOperations).values({ id: operationId, operationType: "CAPTURE", milestoneId, actorUserId: user.id, idempotencyKey, requestFingerprint: fingerprint, requestParameters: { amount_cents: body.data.confirm_amount_cents, authorization_id: snapshot.order.authorizationId, currency: snapshot.order.currency, final_capture: true }, status: "IN_PROGRESS" }).returning();
     const [capture] = await tx.insert(captures).values({ operationId, milestoneId, paypalOrderRowId: snapshot.order.id, authorizationId: snapshot.order.authorizationId!, amountCents: body.data.confirm_amount_cents, finalCapture: true, releasedBy: user.id, status: "IN_PROGRESS" }).returning();
@@ -70,9 +70,10 @@ export const POST = apiRouteWithContext(async (request, _requestId, context) => 
     });
     return Response.json({ capture: { id: result.id, status: captureStatus, amount_cents: body.data.confirm_amount_cents }, payout: null });
   } catch (error) {
-    const uncertain = error instanceof PayPalError ? error.uncertain : true;
+    // AppErrors other than PayPalError (configuration, validation) are raised before any provider call.
+    const uncertain = error instanceof PayPalError ? error.uncertain : !(error instanceof AppError);
     await db.transaction(async (tx) => {
-      await tx.update(paymentOperations).set({ status: uncertain ? "UNKNOWN" : "FAILED", attemptCount: operation.operation.attemptCount + 1, lastErrorCode: error instanceof PayPalError ? error.issue : "NETWORK_ERROR", debugId: error instanceof PayPalError ? error.debugId : null, updatedAt: new Date() }).where(eq(paymentOperations.id, operation.operation.id));
+      await tx.update(paymentOperations).set({ status: uncertain ? "UNKNOWN" : "FAILED", attemptCount: operation.operation.attemptCount + 1, lastErrorCode: error instanceof PayPalError ? error.issue : error instanceof AppError ? error.code : "NETWORK_ERROR", debugId: error instanceof PayPalError ? error.debugId : null, updatedAt: new Date() }).where(eq(paymentOperations.id, operation.operation.id));
       await tx.update(captures).set({ status: uncertain ? "UNKNOWN" : "FAILED", updatedAt: new Date() }).where(eq(captures.operationId, operation.operation.id));
       await tx.update(milestones).set({ captureStatus: uncertain ? "UNKNOWN" : "FAILED", updatedAt: new Date() }).where(eq(milestones.id, milestoneId));
       if (uncertain) await tx.insert(durableJobs).values({ kind: "PAYMENT_RECOVERY", resourceId: operation.operation.id, status: "QUEUED" }).onConflictDoNothing();

@@ -7,7 +7,7 @@ import { ArrowLeft, ArrowRight, Handshake, LoaderCircle, ShieldCheck } from "luc
 
 type Persona = "client" | "freelancer" | "admin";
 
-export function AuthPanel({ demoEnabled, startInDemo }: { demoEnabled: boolean; startInDemo: boolean }) {
+export function AuthPanel({ demoEnabled, adminDemoEnabled, startInDemo }: { demoEnabled: boolean; adminDemoEnabled: boolean; startInDemo: boolean }) {
   const router = useRouter();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
@@ -44,8 +44,8 @@ export function AuthPanel({ demoEnabled, startInDemo }: { demoEnabled: boolean; 
         </form>
         {demoEnabled && <>
           <div className="my-6 flex items-center gap-3 text-xs uppercase tracking-wider text-[#9aa7a1]"><span className="h-px flex-1 bg-[#e7ede9]"/>or use the demo<span className="h-px flex-1 bg-[#e7ede9]"/></div>
-          {startInDemo && <p className="mb-3 rounded-xl bg-[#f2f7f2] px-3 py-2 text-xs leading-5 text-[#526c60]">Demo workspaces are isolated per browser. You can switch personas here without signing out to keep the same sample agreement. Use the admin persona to inspect the local job queue.</p>}
-          <div className="grid grid-cols-2 gap-3">{(["client", "freelancer", "admin"] as Persona[]).map((persona) => <button key={persona} disabled={busy} onClick={() => void callApi("/api/v1/auth/demo", { persona })} className="rounded-xl border border-[#dce5df] px-3 py-3 text-sm font-semibold text-[#31574a] hover:bg-[#f5f9f5] disabled:opacity-60">{busy ? "Please wait…" : `Demo ${persona}`}</button>)}</div>
+          {startInDemo && <p className="mb-3 rounded-xl bg-[#f2f7f2] px-3 py-2 text-xs leading-5 text-[#526c60]">Demo workspaces are isolated per browser. You can switch personas here without signing out to keep the same sample agreement. {adminDemoEnabled && "Use the admin persona to inspect the local job queue."}</p>}
+          <div className="grid grid-cols-2 gap-3">{((adminDemoEnabled ? ["client", "freelancer", "admin"] : ["client", "freelancer"]) as Persona[]).map((persona) => <button key={persona} disabled={busy} onClick={() => void callApi("/api/v1/auth/demo", { persona })} className="rounded-xl border border-[#dce5df] px-3 py-3 text-sm font-semibold text-[#31574a] hover:bg-[#f5f9f5] disabled:opacity-60">{busy ? "Please wait…" : `Demo ${persona}`}</button>)}</div>
         </>}
       </div>
     </section><footer className="mx-auto w-full max-w-6xl py-3 text-center text-xs text-[#82918b]">HoldFast is a hackathon prototype. PayPal sandbox only.</footer>
