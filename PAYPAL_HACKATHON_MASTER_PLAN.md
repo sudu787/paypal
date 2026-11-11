@@ -4160,7 +4160,7 @@ Treat the sponsor page as a set of tools, credits, and submission resources. Use
 |---|---|---|
 | PayPal | Sandbox order approval, authorization, capture, void, and verified webhooks | Existing integration; record sandbox IDs and outcomes for the hosted walkthrough |
 | APIMatic | Use the PayPal Context Plugin for Codex to review implementation and error handling | Installed for Codex; restart Codex to load it, then retain review notes and list only APIs actually used |
-| Render | Host the web service, PostgreSQL, and worker; redeem the hackathon credit; inspect deployment health and logs | Hosting is the planned deployment; connection and hosted walkthrough remain to be completed |
+| Render | Host the web service, PostgreSQL, and worker; redeem the hackathon credit; inspect deployment health and logs | OAuth connection completed on 2026-11-11; create the hosted service, configure sandbox settings, and complete the walkthrough |
 | Render Workflows | Evaluate a bounded demo or maintenance workflow that does not replace the database-backed payment job queue | Pending; document one successful run only if adopted |
 | Postman | Use the PayPal collection for independent sandbox request checks | Pending; save a small collection or run log with sandbox results |
 | Bryntum | Show milestones, due dates, and dependencies on a Gantt or calendar view | Candidate UI enhancement; use the trial and confirm sponsor category requirements before implementation |
