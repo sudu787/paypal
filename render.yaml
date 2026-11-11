@@ -1,7 +1,6 @@
 databases:
   - name: holdfast-db
-    plan: 0.1c-256mb
-    diskSizeGB: 1
+    plan: free
     databaseName: holdfast
     user: holdfast
 
