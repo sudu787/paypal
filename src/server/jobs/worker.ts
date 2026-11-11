@@ -29,6 +29,26 @@ const LEASE_MS = 60_000;
 const MAX_BACKOFF_MS = 15 * 60_000;
 const ACTIVE_OPERATION_STATUSES = ["REQUESTED", "IN_PROGRESS", "UNKNOWN", "PENDING"] as const;
 
+type WorkerStatusState = {
+  enabled: boolean;
+  workerId: string | null;
+  lastTickAt: string | null;
+  lastError: string | null;
+};
+
+type WorkerGlobal = typeof globalThis & {
+  __holdfastDurableWorkerStatus?: WorkerStatusState;
+};
+
+// Next.js bundles instrumentation and route handlers separately. Store status on
+// globalThis so the health route can observe the worker started by instrumentation.
+const workerStatus = ((globalThis as WorkerGlobal).__holdfastDurableWorkerStatus ??= {
+  enabled: false,
+  workerId: null,
+  lastTickAt: null,
+  lastError: null,
+});
+
 export function retryDelayMs(attempt: number) {
   return Math.min(MAX_BACKOFF_MS, 1000 * 2 ** Math.min(Math.max(0, attempt), 10));
 }
@@ -332,22 +352,24 @@ async function recoverStaleOperations() {
   }
 }
 
-let started = false;
-let lastTickAt: string | null = null;
-let lastWorkerError: string | null = null;
-
 export function getWorkerStatus() {
-  return { enabled: started, worker_id: started ? WORKER_ID : null, last_tick_at: lastTickAt, last_error: lastWorkerError };
+  return {
+    enabled: workerStatus.enabled,
+    worker_id: workerStatus.workerId,
+    last_tick_at: workerStatus.lastTickAt,
+    last_error: workerStatus.lastError,
+  };
 }
 
 export function startDurableWorker() {
-  if (started || env.WORKER_DISABLED) return;
-  started = true;
+  if (workerStatus.enabled || env.WORKER_DISABLED) return;
+  workerStatus.enabled = true;
+  workerStatus.workerId = WORKER_ID;
   let tickRunning = false;
   const tick = async () => {
     if (tickRunning) return;
     tickRunning = true;
-    lastTickAt = new Date().toISOString();
+    workerStatus.lastTickAt = new Date().toISOString();
     try {
       await recoverStaleOperations();
       for (let i = 0; i < 8; i += 1) {
@@ -365,9 +387,9 @@ export function startDurableWorker() {
           await retryJob(job, error);
         }
       }
-      lastWorkerError = null;
+      workerStatus.lastError = null;
     } catch (error) {
-      lastWorkerError = error instanceof Error ? error.message : "Worker tick failed.";
+      workerStatus.lastError = error instanceof Error ? error.message : "Worker tick failed.";
       logger.error({ error }, "Durable worker tick failed");
     } finally {
       tickRunning = false;
