@@ -30,7 +30,7 @@ npm run db:seed
 npm run dev
 ```
 
-Open `http://localhost:3000`. In demo mode, the client and freelancer buttons create browser-isolated Maya and Arjun accounts with a sample agreement on first use. The admin persona is available for local job-queue review. Demo fixtures do not create a PayPal order or authorization.
+Open `http://localhost:3000`. In demo mode, the client and freelancer buttons create browser-isolated Maya and Arjun accounts with a sample agreement on first use. The admin persona is available for local job-queue review only; it is never offered when `NODE_ENV=production`, because the admin identity is shared rather than browser-scoped. Demo fixtures do not create a PayPal order or authorization.
 
 For registration and sign-in only, the app can start without a database, but authenticated pages and demo accounts require PostgreSQL. Database migrations are generated into `drizzle/` and applied with `npm run db:migrate`.
 
@@ -40,7 +40,7 @@ Start from `.env.example`. Set `SESSION_SECRET` to a unique value of at least 32
 
 `PAYOUTS_ENABLED` defaults to false and this version does not pay the freelancer. AI is in replay mode by default. Replay negotiation uses fixed sample agent messages; replay verification returns `unclear` and does not inspect a URL. Live evidence review requires an allowed public HTTPS host: set `EVIDENCE_ALLOWED_HOSTS` to a comma-separated list of exact hostnames (no scheme or path). The `APP_URL` hostname is also allowed. The fetcher rejects redirects, private or reserved IPs, non-HTTPS URLs, and oversized/slow responses. Live AI requires `ANTHROPIC_API_KEY`, respects the daily spend ceiling, and uses configurable token prices.
 
-The seed script creates the `admin@holdfast.demo` account with the admin role. In local demo mode, use the `Demo admin` persona to inspect jobs. For another admin, either provision the database user with the `admin` role or set `ADMIN_EMAILS` to a comma-separated allowlist of email addresses. Admin users can inspect failed jobs at `/admin/jobs`; the corresponding protected API is `GET` and `POST /api/v1/admin/jobs`. Demo persona controls are hidden when `DEMO_MODE=false`.
+The seed script creates the `admin@holdfast.demo` account with the admin role. In local development demo mode, use the `Demo admin` persona to inspect jobs. For another admin, either provision the database user with the `admin` role or set `ADMIN_EMAILS` to a comma-separated allowlist of email addresses. Admin users can inspect failed jobs at `/admin/jobs`; the corresponding protected API is `GET` and `POST /api/v1/admin/jobs`. Demo persona controls are hidden when `DEMO_MODE=false`.
 
 Run `npm run smoke:paypal` to check OAuth connectivity without creating an order or payment.
 
@@ -84,7 +84,26 @@ npm run lint
 npm run build
 ```
 
-Database integration tests run when `DATABASE_URL` is set. To run them locally, start PostgreSQL, set `DATABASE_URL`, apply migrations with `npm run db:migrate`, then run `npm test`. GitHub Actions runs the full database-backed test suite, typecheck, lint, and production build against PostgreSQL 16.
+Database integration tests run when `DATABASE_URL` is set. To run them locally, start PostgreSQL, set `DATABASE_URL`, apply migrations with `npm run db:migrate`, then run `npm test`. Point `DATABASE_URL` at a disposable database; never at the hosted one. GitHub Actions runs the full database-backed test suite, typecheck, lint, and production build against PostgreSQL 16.
+
+Payment-recovery tests replace `fetch` with a stub and use dummy sandbox credentials from `tests/setup-env.ts`; they never contact PayPal. They cover lost-response recovery for authorization, capture, and void with the original operation UUID, a pending capture staying pending, an authorization amount mismatch blocking capture, and unmatched or unverified webhooks staying unprocessed.
+
+## Verification status
+
+Each claim below is labelled by how it was established. Last updated 2026-11-11 (commit `acb9c8b`).
+
+| Area | Status |
+| --- | --- |
+| Unit and database tests (24) | Automated, passing locally against a disposable PostgreSQL 16 |
+| Typecheck, lint, production build | Passing locally |
+| GitHub Actions on the latest commit | Not observed (repository is not publicly readable) |
+| Hosted deploy, database, worker health | Hosted-verified via `/api/health` on commit `f1ec7c2` |
+| PayPal sandbox OAuth | Not yet verified (`npm run smoke:paypal` needs the sandbox credentials) |
+| Order → approval → authorization → capture, and void, in PayPal sandbox | Not yet verified |
+| Webhook delivery to the hosted URL | Not yet verified |
+| Browser UI at 375 px and desktop | Checked locally: no horizontal overflow on `/`, `/login`, `/workspace`, `/ledger`, `/demo/deliverable` |
+| Missing-credential payment attempt | Checked locally: shows "PayPal sandbox credentials are not configured", records FAILED, and allows a retry |
+| Live AI negotiation and verification | Not yet verified |
 
 ## Sandbox walkthrough checklist
 
