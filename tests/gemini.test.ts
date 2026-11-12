@@ -66,3 +66,8 @@ test("callGemini treats incomplete answers, non-JSON text, and provider errors a
   stubFetch(t, { error: { message: "quota" } }, 429);
   await assert.rejects(callGemini({ system: "s", prompt: "p", schema: verificationReportSchema }), /rate limit/);
 });
+
+test("callGemini reports a rejected key or ineligible project as not retryable", async (t) => {
+  stubFetch(t, { error: { code: 403, message: "The Gemini API free tier is not available for this project." } }, 403);
+  await assert.rejects(callGemini({ system: "s", prompt: "p", schema: verificationReportSchema }), /Retrying will not help/);
+});

@@ -33,7 +33,7 @@ Run against https://holdfast-06f4.onrender.com (PayPal **sandbox**, `api-m.sandb
 
 ## Not verified
 
-- Live AI negotiation and verification (Gemini 403).
+- Live AI negotiation and verification. Gemini returns 403 because Google reports "The Gemini API free tier is not available for this project": eligibility is per Google Cloud project, so a new key in the same project does not help.
 - Webhook delivery to the hosted URL.
 
 ## Second run (recorded for the demo video), 2026-11-12

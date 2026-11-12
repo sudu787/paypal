@@ -103,7 +103,7 @@ Each claim below is labelled by how it was established. Last updated 2026-11-12 
 | Webhook delivery to the hosted URL | Not yet verified |
 | Browser UI at 375 px and desktop | Checked locally: no horizontal overflow on `/`, `/login`, `/workspace`, `/ledger`, `/demo/deliverable` |
 | Missing-credential payment attempt | Checked locally: shows "PayPal sandbox credentials are not configured", records FAILED, and allows a retry |
-| Live AI negotiation and verification | Not verified: the hosted Gemini call returned HTTP 403 (key rejected). Request/response handling is covered by stubbed tests only |
+| Live AI negotiation and verification | Not verified. The hosted Gemini key belongs to a Google Cloud project that Google reports is not eligible for the Gemini API free tier (HTTP 403, logged 2026-11-12). Request/response handling is covered by stubbed tests only |
 
 ## Sandbox walkthrough checklist
 

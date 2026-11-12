@@ -65,6 +65,8 @@ export async function callGemini<T>(input: { system: string; prompt: string; sch
     // Google's error body names the cause (disabled API, key restriction, unknown model); it never echoes the key.
     const error = (payload as { error?: { status?: unknown; message?: unknown } } | null)?.error;
     logger.warn({ event: "gemini_request_failed", http_status: response.status, provider_status: String(error?.status ?? ""), provider_message: String(error?.message ?? "").slice(0, 300), model: env.GEMINI_MODEL });
+    // 400/401/403 are key or project problems (e.g. a project not eligible for the free tier); retrying cannot fix them.
+    if ([400, 401, 403].includes(response.status)) throw new AppError("AI_UNAVAILABLE", "Live AI is not available: the Gemini API rejected this app's key or project. Retrying will not help; the operator must use a key from an eligible project or switch to replay mode.", 503);
     throw new AppError("AI_UNAVAILABLE", `The AI provider returned HTTP ${response.status}. You can retry this action.`, 503);
   }
 
