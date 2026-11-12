@@ -39,3 +39,5 @@ Run against https://holdfast-06f4.onrender.com (PayPal **sandbox**, `api-m.sandb
 ## Second run (recorded for the demo video), 2026-11-12
 
 A fresh demo session went through the same flow on milestone 1: order `70401806MM5459351`, authorization `204755462M043094X`, then an explicit client release, capture `6KH70411063065422` `COMPLETED` ($260.00). The advisory Gemini review was attempted after the user replaced the API key, but still returned HTTP 403, so the video shows no AI report.
+
+After the root cause was found, the hosted app was switched to `AI_MODE=replay`. Replay negotiation then returned `TERMS_PROPOSED` on the hosted app. Live AI needs a Gemini key from a free-tier-eligible project.

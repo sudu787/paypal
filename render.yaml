@@ -53,7 +53,7 @@ services:
       - key: ANTHROPIC_MODEL
         value: claude-opus-5-5
       - key: AI_MODE
-        value: live
+        value: replay # live needs a Gemini key from a free-tier-eligible project
       - key: AI_DAILY_BUDGET_USD
         value: "5"
       - key: AI_INPUT_PRICE_USD_PER_MTOK
