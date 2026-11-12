@@ -43,11 +43,15 @@ services:
       - key: PAYOUTS_ENABLED
         value: "false"
       - key: AI_PROVIDER
-        value: gemini
+        value: openrouter
       - key: GEMINI_API_KEY
         sync: false
       - key: GEMINI_MODEL
         value: gemini-3.6-flash
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OPENROUTER_MODEL
+        value: nvidia/nemotron-3.5-super-vl:free
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: ANTHROPIC_MODEL

@@ -7,6 +7,7 @@ import { getDatabase } from "@/server/db";
 import { agentRuns } from "@/server/db/schema";
 import { AppError } from "@/server/errors";
 import { callGemini, type ProviderResult } from "@/server/ai/gemini";
+import { callOpenRouter } from "@/server/ai/openrouter";
 
 let anthropic: Anthropic | undefined;
 function getClient() {
@@ -69,13 +70,13 @@ export async function runStructured<T>(input: {
   if (env.AI_MODE !== "live") throw new AppError("AI_UNAVAILABLE", "Live AI requests are disabled in replay mode.", 503);
   const db = getDatabase();
   if (!db) throw new AppError("CONFIGURATION_ERROR", "Database is required for AI run logging.", 503);
-  const gemini = env.AI_PROVIDER === "gemini";
-  const model = gemini ? env.GEMINI_MODEL : env.ANTHROPIC_MODEL;
+  const provider = env.AI_PROVIDER;
+  const model = provider === "gemini" ? env.GEMINI_MODEL : provider === "openrouter" ? env.OPENROUTER_MODEL : env.ANTHROPIC_MODEL;
   const maxTokens = input.maxTokens ?? 1800;
   const messages = [{ role: "user" as const, content: input.prompt }];
   let inputTokens: number;
-  if (gemini) {
-    if (!env.GEMINI_API_KEY) throw new AppError("AI_UNAVAILABLE", "Live AI is not configured. Add a Gemini API key or switch to replay mode.", 503);
+  if (provider !== "anthropic") {
+    if (!(provider === "gemini" ? env.GEMINI_API_KEY : env.OPENROUTER_API_KEY)) throw new AppError("AI_UNAVAILABLE", `Live AI is not configured. Add the ${provider === "gemini" ? "Gemini" : "OpenRouter"} API key or switch to replay mode.`, 503);
     // ponytail: ~4 chars per token estimate for the budget reservation; settled against reported usage afterwards.
     inputTokens = Math.ceil((input.system.length + input.prompt.length) / 4);
   } else {
@@ -89,9 +90,11 @@ export async function runStructured<T>(input: {
   const started = Date.now();
   let settled = false;
   try {
-    const result: ProviderResult<T> = gemini
+    const result: ProviderResult<T> = provider === "gemini"
       ? await callGemini({ system: input.system, prompt: input.prompt, schema: input.schema })
-      : await callAnthropic({ model, maxTokens, system: input.system, messages, schema: input.schema, effort: input.effort ?? "low" });
+      : provider === "openrouter"
+        ? await callOpenRouter({ system: input.system, prompt: input.prompt, schema: input.schema, maxTokens })
+        : await callAnthropic({ model, maxTokens, system: input.system, messages, schema: input.schema, effort: input.effort ?? "low" });
     const actualMicro = Math.ceil(result.inputTokens * env.AI_INPUT_PRICE_USD_PER_MTOK + result.outputTokens * env.AI_OUTPUT_PRICE_USD_PER_MTOK);
     await adjustBudget(date, actualMicro - reservedMicro);
     settled = true;
