@@ -6,6 +6,8 @@ import { toGeminiSchema as toJsonSchema, type ProviderResult } from "@/server/ai
 
 // OpenRouter chat completions (openrouter.ai/docs, read 2026-11-12). OpenAI-compatible.
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+// ponytail: fixed headroom for hidden reasoning; make it configurable if a slower model needs more.
+const REASONING_HEADROOM_TOKENS = 8000;
 
 const completionSchema = z.object({
   choices: z.array(z.object({ message: z.object({ content: z.string().nullable().optional() }).passthrough(), finish_reason: z.string().nullable().optional() }).passthrough()).min(1),
@@ -28,7 +30,9 @@ export async function callOpenRouter<T>(input: { system: string; prompt: string;
       body: JSON.stringify({
         model: env.OPENROUTER_MODEL,
         messages: [{ role: "system", content: input.system }, { role: "user", content: input.prompt }],
-        max_tokens: input.maxTokens,
+        // Reasoning models spend hidden reasoning tokens from max_tokens; without headroom the answer is truncated ("length").
+        max_tokens: input.maxTokens + REASONING_HEADROOM_TOKENS,
+        reasoning: { effort: "low", exclude: true },
         response_format: { type: "json_schema", json_schema: { name: "result", strict: false, schema: toJsonSchema(input.schema) } },
         // Route only to endpoints that honour response_format.
         provider: { require_parameters: true },

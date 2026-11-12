@@ -36,6 +36,7 @@ test("callOpenRouter sends a JSON schema request with bearer auth and validates 
   assert.match(calls[0]!.headers.get("authorization") ?? "", /^Bearer /);
   assert.equal((calls[0]!.body.response_format as { type: string }).type, "json_schema");
   assert.deepEqual(calls[0]!.body.provider, { require_parameters: true });
+  assert.ok((calls[0]!.body.max_tokens as number) > 500, "reasoning headroom is added to the answer budget");
   assert.equal((calls[0]!.body.messages as { role: string }[])[0]!.role, "system");
 });
 
