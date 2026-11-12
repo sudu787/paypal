@@ -90,7 +90,7 @@ Payment-recovery tests replace `fetch` with a stub and use dummy sandbox credent
 
 ## Verification status
 
-Each claim below is labelled by how it was established. Last updated 2026-11-11 (commit `acb9c8b`).
+Each claim below is labelled by how it was established. Last updated 2026-11-12 (commit `f3b1743`).
 
 | Area | Status |
 | --- | --- |
@@ -98,12 +98,12 @@ Each claim below is labelled by how it was established. Last updated 2026-11-11 
 | Typecheck, lint, production build | Passing locally |
 | GitHub Actions on the latest commit | Not observed (repository is not publicly readable) |
 | Hosted deploy, database, worker health | Hosted-verified via `/api/health` on commit `f1ec7c2` |
-| PayPal sandbox OAuth | Not yet verified (`npm run smoke:paypal` needs the sandbox credentials) |
-| Order → approval → authorization → capture, and void, in PayPal sandbox | Not yet verified |
+| PayPal sandbox OAuth | Hosted-verified (orders created on 2026-11-12) |
+| Order → approval → authorization → capture, and void, in PayPal sandbox | Hosted-verified 2026-11-12; IDs in [docs/sandbox-walkthrough.md](docs/sandbox-walkthrough.md) |
 | Webhook delivery to the hosted URL | Not yet verified |
 | Browser UI at 375 px and desktop | Checked locally: no horizontal overflow on `/`, `/login`, `/workspace`, `/ledger`, `/demo/deliverable` |
 | Missing-credential payment attempt | Checked locally: shows "PayPal sandbox credentials are not configured", records FAILED, and allows a retry |
-| Live AI negotiation and verification | Not yet verified. Gemini request/response handling is covered by stubbed tests only |
+| Live AI negotiation and verification | Not verified: the hosted Gemini call returned HTTP 403 (key rejected). Request/response handling is covered by stubbed tests only |
 
 ## Sandbox walkthrough checklist
 
