@@ -3,6 +3,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { z } from "zod";
 import { apiRoute } from "@/server/http";
 import { getSession, requireUser } from "@/server/auth/session";
+import { env } from "@/server/env";
 import { getDatabase } from "@/server/db";
 import { agentRuns, auditEvents, deals, mandates, milestones, negotiationTurns, paypalOrders, submissions, termsSnapshots, users, verifications } from "@/server/db/schema";
 import { AppError } from "@/server/errors";
@@ -92,5 +93,5 @@ export const POST = apiRoute(async (request) => {
     await tx.insert(auditEvents).values({ category: "DEAL", eventType: "DEAL_CREATED", dealId: deal!.id, actorType: "USER", actorUserId: user.id, data: { terms_version: 1, milestone_count: milestoneRows.length } });
     return { deal: deal!, milestones: milestoneRows };
   });
-  return Response.json({ ...result, invite_url: `${new URL(request.url).origin}/join/${inviteToken}` }, { status: 201 });
+  return Response.json({ ...result, invite_url: `${new URL(env.APP_URL).origin}/join/${inviteToken}` }, { status: 201 });
 }, { mutation: true, rateLimit: { key: (request) => `deal-create:${request.headers.get("x-forwarded-for") ?? "unknown"}`, limit: 10, windowMs: 60_000 } });

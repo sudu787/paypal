@@ -1,6 +1,7 @@
 import { and, desc, eq, isNull, or } from "drizzle-orm";
 import { apiRouteWithContext } from "@/server/http";
 import { requireUser } from "@/server/auth/session";
+import { env } from "@/server/env";
 import { getDatabase } from "@/server/db";
 import { deals, mandates, milestones, paypalOrders, submissions, users, verifications } from "@/server/db/schema";
 import { AppError } from "@/server/errors";
@@ -34,5 +35,5 @@ export const GET = apiRouteWithContext(async (_request, _requestId, context) => 
     };
     return { ...milestone, allowedActions, latestSubmission: submission ?? null, verification: verification ?? null, hold: hold ?? null };
   }));
-  return Response.json({ ...deal.deal, myRole: role, client: { id: deal.deal.clientId, displayName: deal.clientName, signed: deal.deal.clientSignedVersion === deal.deal.termsVersion }, freelancer: freelancer ? { ...freelancer, signed: deal.deal.freelancerSignedVersion === deal.deal.termsVersion } : null, myMandate: ownMandate ?? null, milestones: details, inviteUrl: `${new URL(_request.url).origin}/join/${deal.deal.inviteToken}` });
+  return Response.json({ ...deal.deal, myRole: role, client: { id: deal.deal.clientId, displayName: deal.clientName, signed: deal.deal.clientSignedVersion === deal.deal.termsVersion }, freelancer: freelancer ? { ...freelancer, signed: deal.deal.freelancerSignedVersion === deal.deal.termsVersion } : null, myMandate: ownMandate ?? null, milestones: details, inviteUrl: `${new URL(env.APP_URL).origin}/join/${deal.deal.inviteToken}` });
 });

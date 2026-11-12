@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { NextRequest } from "next/server";
 import { requireUser } from "@/server/auth/session";
+import { env } from "@/server/env";
 import { getDatabase } from "@/server/db";
 import { auditEvents, deals, durableJobs, milestones, paymentOperations, paypalOrders } from "@/server/db/schema";
 import { PayPalError, authorizeOrder, getOrder } from "@/server/paypal/client";
@@ -9,7 +10,7 @@ import { AppError } from "@/server/errors";
 import { logger } from "@/server/logger";
 
 function back(request: NextRequest, dealId: string, result: string) {
-  const url = new URL(`/workspace?deal=${encodeURIComponent(dealId)}&${result}`, request.url);
+  const url = new URL(`/workspace?deal=${encodeURIComponent(dealId)}&${result}`, env.APP_URL);
   return Response.redirect(url, 303);
 }
 
