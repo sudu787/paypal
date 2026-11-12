@@ -17,6 +17,22 @@ HoldFast is a sandbox-only hackathon prototype for service agreements. People ca
 - The workspace and `/demo/deliverable` provide the walkthrough screens. `/ledger` has sortable/filterable audit history and CSV export. `/admin/jobs` provides protected worker job inspection and retry for admins.
 - Health reports database connectivity and worker status. No real PayPal payment is made by the seed data. Payouts remain disabled.
 
+## How PayPal, AI, and sponsor tools are used
+
+**Live demo:** https://holdfast-06f4.onrender.com. Choose *Try the demo*, then the client or freelancer persona. PayPal is sandbox only.
+
+| Tool | What it does in HoldFast |
+| --- | --- |
+| **PayPal Orders v2** (sandbox) | Creates an `AUTHORIZE`-intent order for one milestone and sends the client to PayPal to approve it. |
+| **PayPal Payments v2** (sandbox) | Authorizes the approved order, captures the authorization when the client explicitly releases, and voids it when eligible work is cancelled. Every mutation sends a stable `PayPal-Request-Id` for idempotency. |
+| **PayPal webhooks** (sandbox) | Verified by postback, stored durably, and reconciled by the PostgreSQL job worker. |
+| **OpenRouter** (free model `nvidia/nemotron-3.5-super-vl:free`) | Live AI provider on the hosted app. One agent per party negotiates terms within each side's private limits. The evidence reviewer checks submitted work against the signed criteria. Every answer must match a strict JSON Schema and is validated with Zod before use. The review is advisory and cannot move money. |
+| Anthropic and Gemini | Alternative providers selected by `AI_PROVIDER`. Replay mode (`AI_MODE=replay`) needs no AI key. |
+| **Render** (sponsor) | Hosts the web service and the PostgreSQL database from `render.yaml`. |
+| **AG Grid** (sponsor) | Powers the `/ledger` audit trail: sortable, filterable, CSV-exportable payment and agreement events. |
+
+Hosted runs with real sandbox order, authorization, and capture IDs are recorded in [docs/sandbox-walkthrough.md](docs/sandbox-walkthrough.md).
+
 ## Local setup
 
 Requirements: Node.js 20.9 or newer and PostgreSQL 14 or newer.
