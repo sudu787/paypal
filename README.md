@@ -104,7 +104,7 @@ Each claim below is labelled by how it was established. Last updated 2026-11-12 
 | Browser UI at 375 px and desktop | Checked locally: no horizontal overflow on `/`, `/login`, `/workspace`, `/ledger`, `/demo/deliverable` |
 | Missing-credential payment attempt | Checked locally: shows "PayPal sandbox credentials are not configured", records FAILED, and allows a retry |
 | Live AI negotiation | Hosted-verified 2026-11-12 with OpenRouter (`nvidia/nemotron-3.5-super-vl:free`): returned `TERMS_PROPOSED` in live mode after 2 agent turns. Free models allow 50 requests a day |
-| Live AI verification (evidence review) | Not yet run live on the hosted app; it uses the same provider path. Gemini was abandoned because its key's Cloud project is not eligible for the free tier |
+| Live AI verification (evidence review) | Hosted-verified 2026-11-12 with OpenRouter: retrieved the submitted page, assessed each signed criterion, and recommended REVISE for a mismatched deliverable. The client then released anyway, showing the review is advisory |
 
 ## Sandbox walkthrough checklist
 

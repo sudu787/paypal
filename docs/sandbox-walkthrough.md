@@ -43,3 +43,7 @@ A fresh demo session went through the same flow on milestone 1: order `70401806M
 After the root cause was found, the hosted app was switched to `AI_MODE=replay`. Replay negotiation then returned `TERMS_PROPOSED` on the hosted app. Live AI needs a Gemini key from a free-tier-eligible project.
 
 Later the hosted app was switched to OpenRouter (`AI_PROVIDER=openrouter`, `AI_MODE=live`). The first live negotiation was cut off because the reasoning model ran out of tokens (`length`); this was fixed in `ff5947c`. After the fix, live negotiation returned `TERMS_PROPOSED` with two validated agent turns.
+
+## Third run (live AI, recorded for the demo video), 2026-11-12
+
+New agreement "Bookshop reading night page". Live OpenRouter negotiation produced terms version 2 at $400 with five criteria, and both parties signed. PayPal sandbox order `7Y374417NN9271507` was approved and authorized. The freelancer linked `/demo/deliverable`, the bakery sample. The live AI review retrieved it and recommended `REVISE`: it found no reading-night schedule and no email field. The client released anyway to demonstrate that the review is advisory, giving capture `2US282478Y040625G` `COMPLETED` ($400.00).
