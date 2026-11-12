@@ -42,6 +42,12 @@ services:
         sync: false
       - key: PAYOUTS_ENABLED
         value: "false"
+      - key: AI_PROVIDER
+        value: gemini
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-3.6-flash
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: ANTHROPIC_MODEL
