@@ -41,3 +41,5 @@ Run against https://holdfast-06f4.onrender.com (PayPal **sandbox**, `api-m.sandb
 A fresh demo session went through the same flow on milestone 1: order `70401806MM5459351`, authorization `204755462M043094X`, then an explicit client release, capture `6KH70411063065422` `COMPLETED` ($260.00). The advisory Gemini review was attempted after the user replaced the API key, but still returned HTTP 403, so the video shows no AI report.
 
 After the root cause was found, the hosted app was switched to `AI_MODE=replay`. Replay negotiation then returned `TERMS_PROPOSED` on the hosted app. Live AI needs a Gemini key from a free-tier-eligible project.
+
+Later the hosted app was switched to OpenRouter (`AI_PROVIDER=openrouter`, `AI_MODE=live`). The first live negotiation was cut off because the reasoning model ran out of tokens (`length`); this was fixed in `ff5947c`. After the fix, live negotiation returned `TERMS_PROPOSED` with two validated agent turns.

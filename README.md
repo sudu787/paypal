@@ -103,8 +103,8 @@ Each claim below is labelled by how it was established. Last updated 2026-11-12 
 | Webhook delivery to the hosted URL | Not yet verified |
 | Browser UI at 375 px and desktop | Checked locally: no horizontal overflow on `/`, `/login`, `/workspace`, `/ledger`, `/demo/deliverable` |
 | Missing-credential payment attempt | Checked locally: shows "PayPal sandbox credentials are not configured", records FAILED, and allows a retry |
-| Live AI negotiation and verification | Not verified. The hosted Gemini key belongs to a Google Cloud project that Google reports is not eligible for the Gemini API free tier (HTTP 403, logged 2026-11-12), so the hosted app runs in replay mode. Request/response handling is covered by stubbed tests only |
-| Replay negotiation on the hosted app | Hosted-verified 2026-11-12: returns `TERMS_PROPOSED` in replay mode |
+| Live AI negotiation | Hosted-verified 2026-11-12 with OpenRouter (`nvidia/nemotron-3.5-super-vl:free`): returned `TERMS_PROPOSED` in live mode after 2 agent turns. Free models allow 50 requests a day |
+| Live AI verification (evidence review) | Not yet run live on the hosted app; it uses the same provider path. Gemini was abandoned because its key's Cloud project is not eligible for the free tier |
 
 ## Sandbox walkthrough checklist
 
