@@ -1,6 +1,7 @@
 import { z, type ZodType } from "zod";
 import { env } from "@/server/env";
 import { AppError } from "@/server/errors";
+import { logger } from "@/server/logger";
 
 // Gemini Interactions API (aistudio.google.com/api-reference/interactions-api, read 2026-11-12).
 const GEMINI_INTERACTIONS_URL = "https://generativelanguage.googleapis.com/v1beta/interactions";
@@ -60,7 +61,12 @@ export async function callGemini<T>(input: { system: string; prompt: string; sch
   }
   const payload: unknown = await response.json().catch(() => null);
   if (response.status === 429) throw new AppError("RATE_LIMITED", "The AI provider's rate limit was reached. Try again shortly.", 429);
-  if (!response.ok) throw new AppError("AI_UNAVAILABLE", `The AI provider returned HTTP ${response.status}. You can retry this action.`, 503);
+  if (!response.ok) {
+    // Google's error body names the cause (disabled API, key restriction, unknown model); it never echoes the key.
+    const error = (payload as { error?: { status?: unknown; message?: unknown } } | null)?.error;
+    logger.warn({ event: "gemini_request_failed", http_status: response.status, provider_status: String(error?.status ?? ""), provider_message: String(error?.message ?? "").slice(0, 300), model: env.GEMINI_MODEL });
+    throw new AppError("AI_UNAVAILABLE", `The AI provider returned HTTP ${response.status}. You can retry this action.`, 503);
+  }
 
   const { status, text, usage } = interactionText(payload);
   if (status !== "completed") throw new AppError("AI_UNAVAILABLE", `The assistant did not complete its answer (${status}).`, 503);
